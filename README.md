@@ -3,6 +3,18 @@
 ## 개요
 크로스핏 박스를 위한 예약/출석/기록/공지/회원권 관리를 제공하는 플랫폼입니다. 관리자/코치/회원의 역할 기반 권한과 JWT 인증을 사용합니다.
 
+## 빠른 시작
+```bash
+./gradlew bootRun
+```
+
+기본 시드 계정은 아래와 같습니다.
+- 관리자: `admin@crossfit.local` / `admin123`
+- 코치: `coach@crossfit.local` / `coach123`
+- 회원: `member@crossfit.local` / `member123`
+
+H2 콘솔은 `http://localhost:8080/h2-console`에서 확인할 수 있습니다.
+
 ## 주요 기능
 - **회원 인증**: 이메일+비밀번호 로그인, JWT 발급, 역할(Role)=ADMIN, COACH, MEMBER.
 - **수업 예약/조회**:
@@ -43,12 +55,12 @@
 ## API 설계(초안)
 ### 인증
 - `POST /api/auth/login` → JWT 발급
-- `POST /api/auth/refresh` → 토큰 갱신
 
 ### 예약/조회
 - `GET /api/sessions?date=YYYY-MM-DD` → 특정 날짜 세션 목록
 - `POST /api/sessions/{id}/reservations` → 예약
-- `DELETE /api/reservations/{id}` → 취소(수업 1시간 전 제한)
+- `DELETE /api/sessions/reservations/{id}` → 취소(수업 1시간 전 제한)
+- `PATCH /api/sessions/{id}/capacity` → 정원 변경(ADMIN/COACH)
 
 ### 출석
 - `GET /api/attendance?month=YYYY-MM` → 출석일/월간 출석률
