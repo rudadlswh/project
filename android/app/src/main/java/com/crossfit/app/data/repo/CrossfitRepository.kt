@@ -1,0 +1,34 @@
+package com.crossfit.app.data.repo
+
+import com.crossfit.app.data.api.ApiService
+import com.crossfit.app.data.model.*
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class CrossfitRepository @Inject constructor(
+    private val apiService: ApiService
+) {
+    suspend fun sessions(date: String): List<SessionResponse> = apiService.sessions(date)
+
+    suspend fun reserve(date: String, timeSlot: String): ReservationResponse =
+        apiService.reserve(ReserveRequest(date, timeSlot))
+
+    suspend fun cancel(date: String, timeSlot: String): ReservationResponse =
+        apiService.cancel(date, timeSlot)
+
+    suspend fun monthlyAttendance(month: String): AttendanceSummaryResponse =
+        apiService.monthlyAttendance(month)
+
+    suspend fun wod(date: String): WodResponse = apiService.wod(date)
+
+    suspend fun createRecord(req: CreateRecordRequest): RecordResponse = apiService.createRecord(req)
+
+    suspend fun myRecords(): List<RecordResponse> = apiService.myRecords()
+
+    suspend fun notices(): List<NoticeResponse> = apiService.notices()
+
+    suspend fun notice(id: Long): NoticeResponse = apiService.notice(id)
+
+    suspend fun membership(): MembershipResponse = apiService.myMembership()
+}
