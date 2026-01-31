@@ -1,20 +1,18 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:crossfit;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://localhost:3306/crossfit?useSSL=false&useUnicode=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: ROOT1234!!
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
         jdbc:
           time_zone: UTC
-  h2:
-    console:
-      enabled: true
 
 jwt:
   issuer: crossfit-app

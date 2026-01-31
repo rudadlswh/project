@@ -36,11 +36,18 @@ public class WodController {
         return toResponse(wod);
     }
 
+    @DeleteMapping
+    @PreAuthorize("hasAnyRole('ADMIN','COACH')")
+    public void delete(@RequestParam("date") LocalDate date) {
+        wodService.deleteByDate(date);
+    }
+
     private WodDtos.WodResponse toResponse(Wod wod) {
         WodDtos.WodResponse res = new WodDtos.WodResponse();
         res.id = wod.getId();
         res.date = wod.getDate();
         res.title = wod.getTitle();
+        res.type = wod.getType();
         res.description = wod.getDescription();
         return res;
     }

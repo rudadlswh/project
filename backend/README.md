@@ -7,7 +7,7 @@
    - `./gradlew bootRun`
 
 ## Env
-- DB: `jdbc:mysql://localhost:3306/crossfit` (user/pass `crossfit`)
+- DB: `jdbc:mysql://localhost:3307/crossfit` (user/pass `crossfit`)
 - JWT secret: `app.jwt.secret` in `application.yml`
 
 ## Notes

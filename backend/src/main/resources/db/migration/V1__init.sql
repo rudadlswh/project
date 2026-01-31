@@ -70,7 +70,7 @@ CREATE TABLE record (
     user_id BIGINT NOT NULL,
     wod_id BIGINT,
     type VARCHAR(20) NOT NULL,
-    value VARCHAR(100) NOT NULL,
+    record_value VARCHAR(100) NOT NULL,
     record_date DATE NOT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,

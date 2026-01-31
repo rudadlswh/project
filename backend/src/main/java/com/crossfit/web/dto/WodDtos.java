@@ -12,6 +12,8 @@ public class WodDtos {
         @NotBlank
         public String title;
         @NotBlank
+        public String type;
+        @NotBlank
         public String description;
     }
 
@@ -19,6 +21,7 @@ public class WodDtos {
         public Long id;
         public LocalDate date;
         public String title;
+        public String type;
         public String description;
     }
 }

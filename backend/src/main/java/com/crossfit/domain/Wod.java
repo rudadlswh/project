@@ -19,6 +19,9 @@ public class Wod extends BaseEntity {
     @Column(nullable = false, length = 200)
     private String title;
 
+    @Column(nullable = false, length = 50)
+    private String type;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
@@ -29,9 +32,10 @@ public class Wod extends BaseEntity {
     protected Wod() {
     }
 
-    public Wod(LocalDate date, String title, String description, User createdBy) {
+    public Wod(LocalDate date, String title, String type, String description, User createdBy) {
         this.date = date;
         this.title = title;
+        this.type = type;
         this.description = description;
         this.createdBy = createdBy;
     }
@@ -48,6 +52,10 @@ public class Wod extends BaseEntity {
         return title;
     }
 
+    public String getType() {
+        return type;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -62,5 +70,9 @@ public class Wod extends BaseEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

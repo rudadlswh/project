@@ -22,7 +22,7 @@ public class WorkoutRecord {
     @Column(nullable = false)
     private RecordType type;
 
-    @Column(nullable = false)
+    @Column(name = "record_value", nullable = false)
     private String value;
 
     @Column(nullable = false)

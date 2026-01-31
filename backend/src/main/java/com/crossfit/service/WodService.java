@@ -20,14 +20,24 @@ public class WodService {
     @Transactional
     public Wod createOrUpdate(User creator, WodDtos.CreateWodRequest req) {
         Wod wod = wodRepository.findByDate(req.date)
-                .orElseGet(() -> new Wod(req.date, req.title, req.description, creator));
+                .orElseGet(() -> new Wod(req.date, req.title, req.type, req.description, creator));
         wod.setTitle(req.title);
+        wod.setType(req.type);
         wod.setDescription(req.description);
         return wodRepository.save(wod);
     }
 
     public Wod getByDate(LocalDate date) {
         return wodRepository.findByDate(date)
-                .orElseThrow(() -> new IllegalArgumentException("WOD not found"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "WOD not found"));
+    }
+
+    @Transactional
+    public void deleteByDate(LocalDate date) {
+        Wod wod = wodRepository.findByDate(date)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "WOD not found"));
+        wodRepository.delete(wod);
     }
 }

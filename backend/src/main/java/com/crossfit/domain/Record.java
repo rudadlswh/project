@@ -23,7 +23,7 @@ public class Record extends BaseEntity {
     @Column(nullable = false, length = 20)
     private RecordType type;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "record_value", nullable = false, length = 100)
     private String value;
 
     @Column(nullable = false)

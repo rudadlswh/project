@@ -7,12 +7,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.crossfit.app.ui.viewmodel.WodViewModel
+import java.time.LocalDate
 
 @Composable
-fun TodayWodScreen() {
+fun TodayWodScreen(wodViewModel: WodViewModel = hiltViewModel()) {
+    val today = remember { LocalDate.now() }
+    LaunchedEffect(today) {
+        wodViewModel.load(today)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -26,10 +36,29 @@ fun TodayWodScreen() {
             ),
             color = MaterialTheme.colorScheme.onBackground
         )
-        Text(
-            text = "워밍업, 메트콘, 쿨다운 상세가 여기에 표시됩니다.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if (wodViewModel.isLoading) {
+            Text(
+                text = "오늘의 와드를 불러오는 중...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else if (wodViewModel.wod == null) {
+            Text(
+                text = wodViewModel.errorMessage ?: "오늘의 와드가 아직 등록되지 않았습니다.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Text(
+                text = "${wodViewModel.wod?.title.orEmpty()} (${wodViewModel.wod?.type.orEmpty()})",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = wodViewModel.wod?.description.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
