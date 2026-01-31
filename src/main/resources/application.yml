@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/crossfit?useSSL=false&useUnicode=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: ROOT1234!!
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        jdbc:
+          time_zone: UTC
+
+jwt:
+  issuer: crossfit-app
+  secret: "change-this-secret-to-a-long-random-value"
+  access-token-validity-seconds: 3600
+
+server:
+  port: 8080

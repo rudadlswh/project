@@ -1,0 +1,26 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/crossfit?useSSL=false&useUnicode=true&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:crossfit}
+    password: ${SPRING_DATASOURCE_PASSWORD:crossfit}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    issuer: crossfit
+    secret: change-this-dev-secret-change-this-dev-secret
+    access-token-minutes: 120
