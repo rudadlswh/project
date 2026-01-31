@@ -12,20 +12,30 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.OutlinedCard
 import com.crossfit.app.ui.components.Tag
+import com.crossfit.app.ui.viewmodel.NoticeViewModel
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun NoticeScreen(
     onSettingsClick: () -> Unit = {},
     headerSubtitle: String = "회원",
     isAdmin: Boolean = false,
-    onCreateNoticeClick: () -> Unit = {}
+    onCreateNoticeClick: () -> Unit = {},
+    noticeViewModel: NoticeViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(Unit) {
+        noticeViewModel.loadNotices()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -60,22 +70,46 @@ fun NoticeScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        OutlinedCard {
-            AnnouncementCard(
-                title = "크로스핏 짐에 오신 것을 환영합니다!",
-                date = "2025년 1월 20일 오전 9:00",
-                pinned = true,
-                body = "커뮤니티에 함께해 주셔서 감사합니다. 첫 수업은 10분 일찍 도착해주세요."
-            )
-        }
-
-        OutlinedCard {
-            AnnouncementCard(
-                title = "새 수업 일정",
-                date = "2025년 1월 25일 오전 9:00",
-                pinned = false,
-                body = "다음 주부터 오전 6시 추가 수업이 시작됩니다!"
-            )
+        when {
+            noticeViewModel.isListLoading -> {
+                OutlinedCard {
+                    Text(
+                        text = "공지사항을 불러오는 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            !noticeViewModel.listErrorMessage.isNullOrBlank() -> {
+                OutlinedCard {
+                    Text(
+                        text = noticeViewModel.listErrorMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            noticeViewModel.notices.isEmpty() -> {
+                OutlinedCard {
+                    Text(
+                        text = "등록된 공지사항이 없습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            else -> {
+                noticeViewModel.notices.forEachIndexed { index, notice ->
+                    OutlinedCard {
+                        AnnouncementCard(
+                            title = notice.title,
+                            date = formatNoticeDate(notice.createdAt, notice.createdBy),
+                            pinned = index == 0,
+                            body = notice.content
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -115,5 +149,15 @@ private fun AnnouncementCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+private fun formatNoticeDate(createdAt: String, createdBy: String): String {
+    return try {
+        val parsed = LocalDateTime.parse(createdAt)
+        val formatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h:mm", Locale.KOREAN)
+        "${formatter.format(parsed)} · ${createdBy}"
+    } catch (_: Exception) {
+        "작성자: $createdBy"
     }
 }

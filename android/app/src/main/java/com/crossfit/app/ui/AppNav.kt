@@ -13,17 +13,20 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.crossfit.app.ui.viewmodel.SessionViewModel
 import com.crossfit.app.ui.screens.CalendarScreen
 import com.crossfit.app.ui.screens.HomeScreen
 import com.crossfit.app.ui.screens.LoginScreen
@@ -62,7 +65,12 @@ fun AppNav() {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute != Screen.Login.route
-    val currentUserRole = UserRole.ADMIN
+    val sessionViewModel: SessionViewModel = hiltViewModel()
+    val role by sessionViewModel.role.collectAsState(initial = null)
+    val displayName by sessionViewModel.displayName.collectAsState(initial = null)
+    val currentUserRole = role?.let {
+        runCatching { UserRole.valueOf(it) }.getOrNull()
+    } ?: UserRole.MEMBER
     val roleLabel = currentUserRole.label()
     val isStaff = currentUserRole.isStaff()
     val isAdmin = currentUserRole.isAdmin()
@@ -94,7 +102,8 @@ fun AppNav() {
                     onCreateNoticeClick = { navController.navigate(Screen.CreateNotice.route) },
                     isStaff = isStaff,
                     headerSubtitle = roleLabel,
-                    isAdmin = isAdmin
+                    isAdmin = isAdmin,
+                    displayName = displayName
                 )
             }
             composable(Screen.Reserve.route) {
@@ -135,7 +144,11 @@ fun AppNav() {
             }
             composable(Screen.TodayWod.route) { TodayWodScreen() }
             composable(Screen.AdminTools.route) { AdminToolsScreen() }
-            composable(Screen.CreateNotice.route) { CreateNoticeScreen() }
+            composable(Screen.CreateNotice.route) {
+                CreateNoticeScreen(
+                    onCreated = { navController.popBackStack() }
+                )
+            }
             composable(Screen.WodEdit.route) { WodEditScreen() }
             composable(Screen.RecordBulk.route) { RecordBulkScreen() }
         }

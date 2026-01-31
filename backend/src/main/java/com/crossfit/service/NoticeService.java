@@ -33,7 +33,7 @@ public class NoticeService {
     }
 
     public List<Notice> list() {
-        return noticeRepository.findAll();
+        return noticeRepository.findAllByOrderByCreatedAtDesc();
     }
 
     public Notice get(Long id) {

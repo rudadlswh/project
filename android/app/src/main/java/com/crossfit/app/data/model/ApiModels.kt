@@ -61,6 +61,15 @@ data class WodResponse(
     val id: Long,
     val date: String,
     val title: String,
+    val type: String,
+    val description: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateWodRequest(
+    val date: String,
+    val title: String,
+    val type: String,
     val description: String
 )
 
@@ -86,7 +95,14 @@ data class NoticeResponse(
     val id: Long,
     val title: String,
     val content: String,
-    val createdBy: String
+    val createdBy: String,
+    val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateNoticeRequest(
+    val title: String,
+    val content: String
 )
 
 @JsonClass(generateAdapter = true)

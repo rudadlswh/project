@@ -5,8 +5,7 @@ import com.crossfit.domain.Role;
 import com.crossfit.domain.User;
 import com.crossfit.repo.UserRepository;
 import com.crossfit.web.dto.AuthDtos;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,16 +13,13 @@ import org.springframework.stereotype.Service;
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager,
                        JwtTokenProvider tokenProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
     }
 
@@ -37,11 +33,11 @@ public class AuthService {
     }
 
     public AuthDtos.AuthResponse login(AuthDtos.LoginRequest req) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.email, req.password)
-        );
         User user = userRepository.findByEmail(req.email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        if (!passwordEncoder.matches(req.password, user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
         return issueToken(user);
     }
 

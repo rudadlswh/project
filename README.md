@@ -8,6 +8,33 @@
 ./gradlew bootRun
 ```
 
+## 백엔드/안드로이드 개발 실행
+### 백엔드 재시작(포트 8081)
+```bash
+cd /Users/chogyeongmin/develop/crossfit
+./gradlew -p backend bootRun
+```
+
+8081 포트가 이미 사용 중이면 아래로 확인 후 종료하세요.
+```bash
+lsof -nP -iTCP:8081 -sTCP:LISTEN
+kill <PID>
+```
+
+Windows라면:
+```bat
+taskkill /PID <PID> /F
+```
+
+### 안드로이드 재설치
+```bash
+cd /Users/chogyeongmin/develop/crossfit/android
+./gradlew installDebug
+```
+
+에뮬레이터 기준 API 주소는 `http://10.0.2.2:8081/`입니다.
+백엔드 모듈 기준 관리자 계정: `admin@crossfit.local` / `admin1234`
+
 기본 시드 계정은 아래와 같습니다.
 - 관리자: `admin@crossfit.local` / `admin123`
 - 코치: `coach@crossfit.local` / `coach123`

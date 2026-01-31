@@ -19,6 +19,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.flywaydb:flyway-core")
+    runtimeOnly("org.flywaydb:flyway-mysql:9.22.3")
     runtimeOnly("com.mysql:mysql-connector-j")
 
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")

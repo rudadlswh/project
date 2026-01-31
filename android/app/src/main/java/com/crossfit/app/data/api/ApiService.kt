@@ -25,6 +25,12 @@ interface ApiService {
     @GET("wod")
     suspend fun wod(@Query("date") date: String): WodResponse
 
+    @POST("wod")
+    suspend fun createWod(@Body req: CreateWodRequest): WodResponse
+
+    @DELETE("wod")
+    suspend fun deleteWod(@Query("date") date: String)
+
     @POST("records")
     suspend fun createRecord(@Body req: CreateRecordRequest): RecordResponse
 
@@ -36,6 +42,9 @@ interface ApiService {
 
     @GET("notices/{id}")
     suspend fun notice(@Path("id") id: Long): NoticeResponse
+
+    @POST("notices")
+    suspend fun createNotice(@Body req: CreateNoticeRequest): NoticeResponse
 
     @GET("memberships/me")
     suspend fun myMembership(): MembershipResponse

@@ -11,6 +11,8 @@ class CrossfitRepository @Inject constructor(
 ) {
     suspend fun sessions(date: String): List<SessionResponse> = apiService.sessions(date)
 
+    suspend fun login(req: LoginRequest): AuthResponse = apiService.login(req)
+
     suspend fun reserve(date: String, timeSlot: String): ReservationResponse =
         apiService.reserve(ReserveRequest(date, timeSlot))
 
@@ -22,6 +24,10 @@ class CrossfitRepository @Inject constructor(
 
     suspend fun wod(date: String): WodResponse = apiService.wod(date)
 
+    suspend fun createWod(req: CreateWodRequest): WodResponse = apiService.createWod(req)
+
+    suspend fun deleteWod(date: String) = apiService.deleteWod(date)
+
     suspend fun createRecord(req: CreateRecordRequest): RecordResponse = apiService.createRecord(req)
 
     suspend fun myRecords(): List<RecordResponse> = apiService.myRecords()
@@ -31,4 +37,6 @@ class CrossfitRepository @Inject constructor(
     suspend fun notice(id: Long): NoticeResponse = apiService.notice(id)
 
     suspend fun membership(): MembershipResponse = apiService.myMembership()
+
+    suspend fun createNotice(req: CreateNoticeRequest): NoticeResponse = apiService.createNotice(req)
 }

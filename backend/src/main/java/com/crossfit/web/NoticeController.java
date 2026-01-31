@@ -54,6 +54,7 @@ public class NoticeController {
         res.title = notice.getTitle();
         res.content = notice.getContent();
         res.createdBy = notice.getCreatedBy().getDisplayName();
+        res.createdAt = notice.getCreatedAt().toString();
         return res;
     }
 }

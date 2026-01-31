@@ -16,13 +16,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.InfoRow
 import com.crossfit.app.ui.components.OutlinedCard
 import com.crossfit.app.ui.components.Tag
+import com.crossfit.app.ui.viewmodel.NoticeViewModel
+import com.crossfit.app.ui.viewmodel.WodViewModel
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -32,8 +41,22 @@ fun HomeScreen(
     headerSubtitle: String = "회원",
     isAdmin: Boolean = false,
     onEditWodClick: () -> Unit = {},
-    onCreateNoticeClick: () -> Unit = {}
+    onCreateNoticeClick: () -> Unit = {},
+    displayName: String? = null,
+    wodViewModel: WodViewModel = hiltViewModel(),
+    noticeViewModel: NoticeViewModel = hiltViewModel()
 ) {
+    val today = remember { LocalDate.now() }
+    val formattedDate = remember(today) {
+        DateTimeFormatter.ofPattern("yyyy년 M월 d일 EEEE", Locale.KOREAN).format(today)
+    }
+    LaunchedEffect(today) {
+        wodViewModel.load(today)
+    }
+    LaunchedEffect(Unit) {
+        noticeViewModel.loadNotices()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -48,12 +71,12 @@ fun HomeScreen(
         )
 
         Text(
-            text = "다시 오신 것을 환영합니다, 관리자님!",
+            text = "다시 오신 것을 환영합니다, ${displayName ?: headerSubtitle}님!",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = "2026년 1월 29일 목요일",
+            text = formattedDate,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -83,35 +106,44 @@ fun HomeScreen(
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = "오늘의 운동",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row {
+            if (wodViewModel.isLoading) {
                 Text(
-                    text = "프란",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "오늘의 와드를 불러오는 중...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Tag(
-                    text = "타임",
-                    background = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+            } else if (wodViewModel.wod == null) {
+                Text(
+                    text = wodViewModel.errorMessage ?: "오늘의 와드가 아직 등록되지 않았습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = "오늘의 운동",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row {
+                    Text(
+                        text = wodViewModel.wod?.title.orEmpty(),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Tag(
+                        text = wodViewModel.wod?.type.orEmpty(),
+                        background = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = wodViewModel.wod?.description.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = "21-15-9 반복 (타임)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "- 쓰러스터 (95/65 파운드)\n- 풀업",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onTodayWodClick,
@@ -144,18 +176,39 @@ fun HomeScreen(
                     }
                 }
             }
-            AnnouncementItem(
-                title = "크로스핏 짐에 오신 것을 환영합니다!",
-                date = "2025년 1월 20일",
-                pinned = true,
-                body = "커뮤니티에 함께해 주셔서 감사합니다."
-            )
-            AnnouncementItem(
-                title = "새 수업 일정",
-                date = "2025년 1월 25일",
-                pinned = false,
-                body = "다음 주부터 오전 6시 추가 수업이 시작됩니다."
-            )
+            when {
+                noticeViewModel.isListLoading -> {
+                    Text(
+                        text = "공지사항을 불러오는 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                !noticeViewModel.listErrorMessage.isNullOrBlank() -> {
+                    Text(
+                        text = noticeViewModel.listErrorMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                noticeViewModel.notices.isEmpty() -> {
+                    Text(
+                        text = "등록된 공지사항이 없습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> {
+                    noticeViewModel.notices.take(2).forEachIndexed { index, notice ->
+                        AnnouncementItem(
+                            title = notice.title,
+                            date = formatNoticeDate(notice.createdAt, notice.createdBy),
+                            pinned = index == 0,
+                            body = notice.content
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -196,5 +249,15 @@ private fun AnnouncementItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(6.dp))
+    }
+}
+
+private fun formatNoticeDate(createdAt: String, createdBy: String): String {
+    return try {
+        val parsed = LocalDateTime.parse(createdAt)
+        val formatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h:mm", Locale.KOREAN)
+        "${formatter.format(parsed)} · ${createdBy}"
+    } catch (_: Exception) {
+        "작성자: $createdBy"
     }
 }
