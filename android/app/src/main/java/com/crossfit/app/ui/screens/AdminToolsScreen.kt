@@ -34,11 +34,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.OutlinedCard
+import com.crossfit.app.ui.viewmodel.AdminViewModel
 import com.crossfit.app.ui.viewmodel.WodViewModel
 import java.time.LocalDate
 
 @Composable
-fun AdminToolsScreen(wodViewModel: WodViewModel = hiltViewModel()) {
+fun AdminToolsScreen(
+    adminViewModel: AdminViewModel = hiltViewModel(),
+    wodViewModel: WodViewModel = hiltViewModel()
+) {
     val focusManager = LocalFocusManager.current
     val today = remember { LocalDate.now() }
     var coachName by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -74,6 +78,18 @@ fun AdminToolsScreen(wodViewModel: WodViewModel = hiltViewModel()) {
             todayWodType = TextFieldValue(wod.type)
             todayWodDescription = TextFieldValue(wod.description)
             wodHydrated = true
+        }
+    }
+    LaunchedEffect(adminViewModel.coachSuccessMessage) {
+        if (!adminViewModel.coachSuccessMessage.isNullOrBlank()) {
+            coachName = TextFieldValue("")
+            coachEmail = TextFieldValue("")
+        }
+    }
+    LaunchedEffect(adminViewModel.membershipSuccessMessage) {
+        if (!adminViewModel.membershipSuccessMessage.isNullOrBlank()) {
+            memberQuery = TextFieldValue("")
+            extensionDays = TextFieldValue("")
         }
     }
 
@@ -125,14 +141,34 @@ fun AdminToolsScreen(wodViewModel: WodViewModel = hiltViewModel()) {
                     onDone = { focusManager.clearFocus() }
                 )
             )
+            adminViewModel.coachErrorMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            adminViewModel.coachSuccessMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Button(
-                onClick = {},
+                onClick = {
+                    adminViewModel.registerCoach(
+                        displayName = coachName.text.trim(),
+                        email = coachEmail.text.trim()
+                    )
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                ),
+                enabled = !adminViewModel.isCoachLoading
             ) {
-                Text(text = "등록")
+                Text(text = if (adminViewModel.isCoachLoading) "등록 중..." else "등록")
             }
         }
 
@@ -165,14 +201,34 @@ fun AdminToolsScreen(wodViewModel: WodViewModel = hiltViewModel()) {
                 )
             )
             Spacer(modifier = Modifier.height(4.dp))
+            adminViewModel.membershipErrorMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            adminViewModel.membershipSuccessMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Button(
-                onClick = {},
+                onClick = {
+                    adminViewModel.extendMembership(
+                        query = memberQuery.text.trim(),
+                        daysInput = extensionDays.text
+                    )
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                ),
+                enabled = !adminViewModel.isMembershipLoading
             ) {
-                Text(text = "연장 적용")
+                Text(text = if (adminViewModel.isMembershipLoading) "연장 중..." else "연장 적용")
             }
         }
 

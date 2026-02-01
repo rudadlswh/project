@@ -139,7 +139,14 @@ fun AppNav() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onSettingsClick = { navigateToAdminTools(navController, isAdmin) },
-                    headerSubtitle = roleLabel
+                    headerSubtitle = roleLabel,
+                    onLogout = {
+                        sessionViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
             composable(Screen.TodayWod.route) { TodayWodScreen() }

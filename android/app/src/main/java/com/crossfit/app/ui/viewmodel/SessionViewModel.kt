@@ -7,8 +7,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
-    tokenStore: TokenStore
+    private val tokenStore: TokenStore
 ) : ViewModel() {
     val role = tokenStore.role
     val displayName = tokenStore.displayName
+
+    fun logout() {
+        tokenStore.clear()
+    }
 }

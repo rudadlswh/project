@@ -39,4 +39,11 @@ class CrossfitRepository @Inject constructor(
     suspend fun membership(): MembershipResponse = apiService.myMembership()
 
     suspend fun createNotice(req: CreateNoticeRequest): NoticeResponse = apiService.createNotice(req)
+
+    suspend fun me(): UserResponse = apiService.me()
+
+    suspend fun createCoach(req: CreateCoachRequest): AdminUserResponse = apiService.createCoach(req)
+
+    suspend fun extendMembership(req: ExtendMembershipRequest): MembershipResponse =
+        apiService.extendMembership(req)
 }

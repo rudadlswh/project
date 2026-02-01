@@ -48,4 +48,13 @@ interface ApiService {
 
     @GET("memberships/me")
     suspend fun myMembership(): MembershipResponse
+
+    @GET("users/me")
+    suspend fun me(): UserResponse
+
+    @POST("admin/coaches")
+    suspend fun createCoach(@Body req: CreateCoachRequest): AdminUserResponse
+
+    @POST("admin/memberships/extend")
+    suspend fun extendMembership(@Body req: ExtendMembershipRequest): MembershipResponse
 }

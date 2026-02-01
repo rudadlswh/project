@@ -26,6 +26,7 @@ import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.InfoRow
 import com.crossfit.app.ui.components.OutlinedCard
 import com.crossfit.app.ui.components.Tag
+import com.crossfit.app.ui.viewmodel.MembershipViewModel
 import com.crossfit.app.ui.viewmodel.NoticeViewModel
 import com.crossfit.app.ui.viewmodel.WodViewModel
 import java.time.LocalDate
@@ -44,6 +45,7 @@ fun HomeScreen(
     onCreateNoticeClick: () -> Unit = {},
     displayName: String? = null,
     wodViewModel: WodViewModel = hiltViewModel(),
+    membershipViewModel: MembershipViewModel = hiltViewModel(),
     noticeViewModel: NoticeViewModel = hiltViewModel()
 ) {
     val today = remember { LocalDate.now() }
@@ -55,6 +57,11 @@ fun HomeScreen(
     }
     LaunchedEffect(Unit) {
         noticeViewModel.loadNotices()
+    }
+    LaunchedEffect(isStaff) {
+        if (!isStaff) {
+            membershipViewModel.load()
+        }
     }
 
     Column(
@@ -88,15 +95,67 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                InfoRow(label = "종류", value = "기간제")
-                InfoRow(label = "상태") {
-                    Tag(
-                        text = "만료",
-                        background = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
+                when {
+                    membershipViewModel.isLoading -> {
+                        Text(
+                            text = "회원권 정보를 불러오는 중...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    !membershipViewModel.errorMessage.isNullOrBlank() -> {
+                        Text(
+                            text = membershipViewModel.errorMessage.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    membershipViewModel.membership == null -> {
+                        InfoRow(label = "종류", value = "미등록")
+                        InfoRow(label = "상태", value = "미등록")
+                        InfoRow(label = "잔여", value = "미등록")
+                    }
+                    else -> {
+                        val membership = membershipViewModel.membership!!
+                        val typeLabel = when (membership.type) {
+                            "PERIOD" -> "기간제"
+                            "COUNT" -> "횟수제"
+                            else -> membership.type
+                        }
+                        val expired = when (membership.type) {
+                            "PERIOD" -> (membership.remainingDays ?: 0) <= 0
+                            "COUNT" -> (membership.remainingCount ?: 0) <= 0
+                            else -> false
+                        }
+                        val statusText = if (expired) "만료" else "활성"
+                        val remainingText = when (membership.type) {
+                            "PERIOD" -> membership.remainingDays?.let {
+                                if (it > 0) "${it}일" else "만료"
+                            } ?: "정보 없음"
+                            "COUNT" -> membership.remainingCount?.let {
+                                if (it > 0) "${it}회" else "만료"
+                            } ?: "정보 없음"
+                            else -> "정보 없음"
+                        }
+                        InfoRow(label = "종류", value = typeLabel)
+                        InfoRow(label = "상태") {
+                            Tag(
+                                text = statusText,
+                                background = if (expired) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                contentColor = if (expired) {
+                                    MaterialTheme.colorScheme.onError
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary
+                                }
+                            )
+                        }
+                        InfoRow(label = "잔여", value = remainingText)
+                    }
                 }
-                InfoRow(label = "잔여", value = "만료")
             }
         }
 

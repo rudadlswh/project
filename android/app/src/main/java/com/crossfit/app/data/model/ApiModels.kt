@@ -23,6 +23,36 @@ data class AuthResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class UserResponse(
+    val id: Long,
+    val email: String,
+    val displayName: String,
+    val role: String,
+    val active: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateCoachRequest(
+    val email: String,
+    val displayName: String
+)
+
+@JsonClass(generateAdapter = true)
+data class AdminUserResponse(
+    val id: Long,
+    val email: String,
+    val displayName: String,
+    val role: String,
+    val active: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class ExtendMembershipRequest(
+    val query: String,
+    val days: Int
+)
+
+@JsonClass(generateAdapter = true)
 data class SessionResponse(
     val id: Long,
     val date: String,
