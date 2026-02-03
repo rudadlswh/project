@@ -21,6 +21,18 @@ public enum TimeSlot {
         return time;
     }
 
+    public String getDisplay() {
+        return time.toString();
+    }
+
+    public static TimeSlot fromString(String value) {
+        LocalTime parsed = LocalTime.parse(value);
+        return Arrays.stream(values())
+                .filter(slot -> slot.time.equals(parsed))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Invalid time slot"));
+    }
+
     public static List<TimeSlot> defaultSlots() {
         return Arrays.asList(values());
     }

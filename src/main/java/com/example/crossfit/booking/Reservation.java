@@ -5,7 +5,8 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
-@Table(name = "reservations")
+@Table(name = "reservations",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "session_id"}))
 public class Reservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +52,10 @@ public class Reservation {
 
     public void setStatus(ReservationStatus status) {
         this.status = status;
+    }
+
+    public void refreshCreatedAt() {
+        this.createdAt = Instant.now();
     }
 
     public Instant getCreatedAt() {

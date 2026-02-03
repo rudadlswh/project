@@ -17,6 +17,12 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column
+    private String displayName;
+
+    @Column
+    private Boolean active = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -31,6 +37,16 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+        this.displayName = email;
+        this.active = true;
+    }
+
+    public User(String email, String passwordHash, Role role, String displayName) {
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.displayName = displayName;
+        this.active = true;
     }
 
     public Long getId() {
@@ -45,8 +61,16 @@ public class User {
         return passwordHash;
     }
 
+    public String getDisplayName() {
+        return displayName;
+    }
+
     public Role getRole() {
         return role;
+    }
+
+    public Boolean getActive() {
+        return active;
     }
 
     public Instant getCreatedAt() {

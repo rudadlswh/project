@@ -19,5 +19,8 @@ jwt:
   secret: "change-this-secret-to-a-long-random-value"
   access-token-validity-seconds: 3600
 
+app:
+  upload-dir: uploads
+
 server:
-  port: 8080
+  port: 8081

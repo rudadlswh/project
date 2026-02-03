@@ -6,6 +6,8 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class WodService {
@@ -17,15 +19,27 @@ public class WodService {
         this.userRepository = userRepository;
     }
 
-    public Wod getTodayWod(LocalDate date) {
+    public Wod getByDate(LocalDate date) {
         return wodRepository.findByWodDate(date).orElse(null);
     }
 
     @Transactional
-    public Wod createWod(WodRequest request, Long creatorId) {
+    public Wod createOrUpdate(WodRequest request, Long creatorId) {
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-        Wod wod = new Wod(request.date(), request.title(), request.description(), creator);
-        return wodRepository.save(wod);
+        return wodRepository.findByWodDate(request.date())
+                .map(existing -> {
+                    existing.update(request.title(), request.type(), request.description());
+                    return existing;
+                })
+                .orElseGet(() -> wodRepository.save(
+                        new Wod(request.date(), request.title(), request.type(), request.description(), creator)));
+    }
+
+    @Transactional
+    public void deleteByDate(LocalDate date) {
+        Wod wod = wodRepository.findByWodDate(date)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wod not found"));
+        wodRepository.delete(wod);
     }
 }

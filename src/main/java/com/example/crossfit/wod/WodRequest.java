@@ -8,6 +8,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 public record WodRequest(
         @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
         @NotBlank String title,
+        @NotBlank String type,
         @NotBlank String description
 ) {
 }

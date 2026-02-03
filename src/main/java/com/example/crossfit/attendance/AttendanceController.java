@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/attendance")
+@RequestMapping({"/api/attendance", "/attendance"})
 public class AttendanceController {
     private final AttendanceService attendanceService;
 
@@ -18,13 +18,13 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
-    @GetMapping
-    public ResponseEntity<AttendanceSummary> getMonthlySummary(
+    @GetMapping("/monthly")
+    public ResponseEntity<AttendanceSummaryResponse> getMonthlySummary(
             @RequestParam("month") String month,
             Authentication authentication) {
         Long userId = Long.valueOf(authentication.getName());
         YearMonth yearMonth = YearMonth.parse(month);
-        return ResponseEntity.ok(attendanceService.getMonthlySummary(userId, yearMonth));
+        return ResponseEntity.ok(attendanceService.getMonthlySummaryResponse(userId, yearMonth));
     }
 
     @PostMapping

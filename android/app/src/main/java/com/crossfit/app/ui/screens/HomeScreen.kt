@@ -123,7 +123,7 @@ fun HomeScreen(
                             else -> membership.type
                         }
                         val expired = when (membership.type) {
-                            "PERIOD" -> (membership.remainingDays ?: 0) <= 0
+                            "PERIOD" -> (membership.remainingDays ?: 0L) <= 0L
                             "COUNT" -> (membership.remainingCount ?: 0) <= 0
                             else -> false
                         }

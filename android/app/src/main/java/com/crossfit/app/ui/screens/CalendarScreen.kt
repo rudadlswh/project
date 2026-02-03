@@ -1,6 +1,7 @@
 package com.crossfit.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,22 +20,55 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.CalendarDayCell
 import com.crossfit.app.ui.components.InfoRow
 import com.crossfit.app.ui.components.OutlinedCard
+import com.crossfit.app.ui.viewmodel.AttendanceViewModel
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun CalendarScreen(
     onSettingsClick: () -> Unit = {},
     isStaff: Boolean = false,
-    headerSubtitle: String = "회원"
+    headerSubtitle: String = "회원",
+    attendanceViewModel: AttendanceViewModel = hiltViewModel()
 ) {
+    val today = remember { LocalDate.now() }
+    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+    val monthLabel = remember(currentMonth) {
+        DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN).format(currentMonth.atDay(1))
+    }
+    val weeks = remember(currentMonth) { buildCalendar(currentMonth) }
+
+    LaunchedEffect(currentMonth) {
+        attendanceViewModel.load(currentMonth)
+    }
+
+    val summary = attendanceViewModel.summary
+    val attendedDays = summary?.dates
+        ?.mapNotNull { runCatching { LocalDate.parse(it).dayOfMonth }.getOrNull() }
+        ?.toSet()
+        ?: emptySet()
+    val attendanceRate = summary?.attendanceRate?.let { String.format(Locale.KOREAN, "%.1f%%", it * 100) } ?: "-"
+    val totalDays = summary?.totalDays?.toString() ?: "-"
+    val weekdays = summary?.weekdaysInMonth?.toString() ?: "-"
+    val todaySelectedDay = if (currentMonth == YearMonth.from(today)) today.dayOfMonth else -1
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,12 +101,27 @@ fun CalendarScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "2026년 1월",
+                    text = monthLabel,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                InfoRow(label = "출석률", value = "0.0%")
-                InfoRow(label = "출석 일수", value = "0")
+                if (attendanceViewModel.errorMessage != null) {
+                    Text(
+                        text = attendanceViewModel.errorMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (attendanceViewModel.isLoading) {
+                    Text(
+                        text = "출석 정보를 불러오는 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                InfoRow(label = "출석률", value = attendanceRate)
+                InfoRow(label = "출석 일수", value = totalDays)
+                InfoRow(label = "평일 일수", value = weekdays)
                 Text(
                     text = "* 출석률 = 출석일 / 평일(월-금) 기준",
                     style = MaterialTheme.typography.labelSmall,
@@ -86,20 +135,20 @@ fun CalendarScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "2026년 1월",
+                        text = monthLabel,
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    CalendarNavButton("<")
+                    CalendarNavButton("<") { currentMonth = currentMonth.minusMonths(1) }
                     Spacer(modifier = Modifier.width(8.dp))
-                    CalendarNavButton(">")
+                    CalendarNavButton(">") { currentMonth = currentMonth.plusMonths(1) }
                 }
                 WeekdayRow()
                 CalendarGrid(
-                    weeks = sampleCalendarWeeks(),
-                    selectedDay = 29,
-                    attendedDays = setOf(2, 5, 7, 9, 12, 14, 16, 19, 21)
+                    weeks = weeks,
+                    todayDay = todaySelectedDay,
+                    attendedDays = attendedDays
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -115,13 +164,15 @@ fun CalendarScreen(
 }
 
 @Composable
-private fun CalendarNavButton(label: String) {
+private fun CalendarNavButton(label: String, onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Box(
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier
+                .size(26.dp)
+                .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
             Text(text = label, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -168,7 +219,7 @@ private fun WeekdayRow() {
 @Composable
 private fun CalendarGrid(
     weeks: List<List<CalendarDayCell>>,
-    selectedDay: Int,
+    todayDay: Int,
     attendedDays: Set<Int>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -178,10 +229,10 @@ private fun CalendarGrid(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 week.forEach { cell ->
-                    val isSelected = cell.inMonth && cell.day == selectedDay
+                    val isToday = cell.inMonth && cell.day == todayDay
                     val isAttended = cell.inMonth && attendedDays.contains(cell.day)
                     val background = when {
-                        isSelected -> MaterialTheme.colorScheme.primary
+                        isToday -> MaterialTheme.colorScheme.primary
                         isAttended -> MaterialTheme.colorScheme.onSurface
                         else -> Color.Transparent
                     }
@@ -201,7 +252,7 @@ private fun CalendarGrid(
                                 text = cell.day.toString(),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = when {
-                                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                                    isToday -> MaterialTheme.colorScheme.onPrimary
                                     isAttended -> MaterialTheme.colorScheme.surface
                                     cell.inMonth -> MaterialTheme.colorScheme.onSurface
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -215,52 +266,20 @@ private fun CalendarGrid(
     }
 }
 
-private fun sampleCalendarWeeks(): List<List<CalendarDayCell>> {
-    return listOf(
-        listOf(
-            CalendarDayCell(28, false),
-            CalendarDayCell(29, false),
-            CalendarDayCell(30, false),
-            CalendarDayCell(31, false),
-            CalendarDayCell(1, true),
-            CalendarDayCell(2, true),
-            CalendarDayCell(3, true)
-        ),
-        listOf(
-            CalendarDayCell(4, true),
-            CalendarDayCell(5, true),
-            CalendarDayCell(6, true),
-            CalendarDayCell(7, true),
-            CalendarDayCell(8, true),
-            CalendarDayCell(9, true),
-            CalendarDayCell(10, true)
-        ),
-        listOf(
-            CalendarDayCell(11, true),
-            CalendarDayCell(12, true),
-            CalendarDayCell(13, true),
-            CalendarDayCell(14, true),
-            CalendarDayCell(15, true),
-            CalendarDayCell(16, true),
-            CalendarDayCell(17, true)
-        ),
-        listOf(
-            CalendarDayCell(18, true),
-            CalendarDayCell(19, true),
-            CalendarDayCell(20, true),
-            CalendarDayCell(21, true),
-            CalendarDayCell(22, true),
-            CalendarDayCell(23, true),
-            CalendarDayCell(24, true)
-        ),
-        listOf(
-            CalendarDayCell(25, true),
-            CalendarDayCell(26, true),
-            CalendarDayCell(27, true),
-            CalendarDayCell(28, true),
-            CalendarDayCell(29, true),
-            CalendarDayCell(30, true),
-            CalendarDayCell(31, true)
-        )
-    )
+private fun buildCalendar(month: YearMonth): List<List<CalendarDayCell>> {
+    val first = month.atDay(1)
+    val offset = first.dayOfWeek.value % 7
+    val daysInMonth = month.lengthOfMonth()
+    val totalCells = ((offset + daysInMonth + 6) / 7) * 7
+    val prevMonth = month.minusMonths(1)
+    val prevMonthDays = prevMonth.lengthOfMonth()
+    val cells = (0 until totalCells).map { index ->
+        val dayNumber = index - offset + 1
+        when {
+            dayNumber < 1 -> CalendarDayCell(prevMonthDays + dayNumber, false)
+            dayNumber > daysInMonth -> CalendarDayCell(dayNumber - daysInMonth, false)
+            else -> CalendarDayCell(dayNumber, true)
+        }
+    }
+    return cells.chunked(7)
 }

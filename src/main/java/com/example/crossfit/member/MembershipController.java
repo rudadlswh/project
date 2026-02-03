@@ -7,7 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/memberships")
+@RequestMapping({"/api/memberships", "/memberships"})
 public class MembershipController {
     private final MembershipService membershipService;
 

@@ -14,9 +14,9 @@ public class DataInitializer {
     CommandLineRunner seedUsers(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
             if (userRepository.count() == 0) {
-                userRepository.save(new User("admin@crossfit.local", passwordEncoder.encode("admin123"), Role.ADMIN));
-                userRepository.save(new User("coach@crossfit.local", passwordEncoder.encode("coach123"), Role.COACH));
-                userRepository.save(new User("member@crossfit.local", passwordEncoder.encode("member123"), Role.MEMBER));
+                userRepository.save(new User("admin@crossfit.local", passwordEncoder.encode("admin123"), Role.ADMIN, "관리자"));
+                userRepository.save(new User("coach@crossfit.local", passwordEncoder.encode("coach123"), Role.COACH, "코치"));
+                userRepository.save(new User("member@crossfit.local", passwordEncoder.encode("member123"), Role.MEMBER, "회원"));
             }
         };
     }

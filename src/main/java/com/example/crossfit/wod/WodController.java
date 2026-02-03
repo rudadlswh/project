@@ -9,7 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/wod")
+@RequestMapping({"/api/wod", "/wod"})
 public class WodController {
     private final WodService wodService;
 
@@ -17,17 +17,28 @@ public class WodController {
         this.wodService = wodService;
     }
 
-    @GetMapping("/today")
-    public ResponseEntity<Wod> getTodayWod(
+    @GetMapping
+    public ResponseEntity<WodResponse> getByDate(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(wodService.getTodayWod(date));
+        Wod wod = wodService.getByDate(date);
+        if (wod == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(WodResponse.from(wod));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','COACH')")
-    public ResponseEntity<Wod> createWod(@Valid @RequestBody WodRequest request,
-                                         Authentication authentication) {
+    public ResponseEntity<WodResponse> createWod(@Valid @RequestBody WodRequest request,
+                                                 Authentication authentication) {
         Long userId = Long.valueOf(authentication.getName());
-        return ResponseEntity.ok(wodService.createWod(request, userId));
+        return ResponseEntity.ok(WodResponse.from(wodService.createOrUpdate(request, userId)));
+    }
+
+    @DeleteMapping
+    @PreAuthorize("hasAnyRole('ADMIN','COACH')")
+    public ResponseEntity<Void> delete(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        wodService.deleteByDate(date);
+        return ResponseEntity.noContent().build();
     }
 }

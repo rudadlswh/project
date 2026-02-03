@@ -57,4 +57,8 @@ public class Membership {
     public Integer getRemainingCount() {
         return remainingCount;
     }
+
+    public void setRemainingCount(Integer remainingCount) {
+        this.remainingCount = remainingCount;
+    }
 }

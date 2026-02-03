@@ -65,6 +65,24 @@ data class SessionResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class SessionReservationResponse(
+    val reservationId: Long,
+    val userId: Long,
+    val displayName: String,
+    val status: String,
+    val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class MyReservationResponse(
+    val reservationId: Long,
+    val sessionId: Long,
+    val date: String,
+    val timeSlot: String,
+    val status: String
+)
+
+@JsonClass(generateAdapter = true)
 data class ReserveRequest(
     val date: String,
     val timeSlot: String
@@ -108,7 +126,8 @@ data class CreateRecordRequest(
     val wodId: Long?,
     val type: String,
     val value: String,
-    val recordDate: String
+    val recordDate: String,
+    val imageUrl: String?
 )
 
 @JsonClass(generateAdapter = true)
@@ -117,6 +136,7 @@ data class RecordResponse(
     val wodId: Long?,
     val type: String,
     val value: String,
+    val imageUrl: String?,
     val recordDate: String
 )
 
@@ -141,5 +161,26 @@ data class MembershipResponse(
     val startDate: String?,
     val endDate: String?,
     val remainingCount: Int?,
-    val remainingDays: Int?
+    val remainingDays: Long?
+)
+
+@JsonClass(generateAdapter = true)
+data class UploadResponse(
+    val url: String
+)
+
+@JsonClass(generateAdapter = true)
+data class BulkRecordRequest(
+    val members: List<String>,
+    val recordType: String,
+    val value: String,
+    val recordDate: String,
+    val wodTitle: String
+)
+
+@JsonClass(generateAdapter = true)
+data class BulkRecordResponse(
+    val createdCount: Int,
+    val failedMembers: List<String>,
+    val message: String
 )

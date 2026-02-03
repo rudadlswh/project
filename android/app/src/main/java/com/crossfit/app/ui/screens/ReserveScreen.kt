@@ -1,6 +1,7 @@
 package com.crossfit.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -21,19 +21,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.crossfit.app.data.model.SessionResponse
+import com.crossfit.app.data.model.SessionReservationResponse
 import com.crossfit.app.ui.components.AppHeader
 import com.crossfit.app.ui.components.CalendarDayCell
 import com.crossfit.app.ui.components.OutlinedCard
+import com.crossfit.app.ui.components.Tag
+import com.crossfit.app.ui.viewmodel.ReserveViewModel
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -41,13 +49,28 @@ import java.util.Locale
 fun ReserveScreen(
     onSettingsClick: () -> Unit = {},
     headerSubtitle: String = "회원",
-    isStaff: Boolean = false
+    isStaff: Boolean = false,
+    reserveViewModel: ReserveViewModel = hiltViewModel()
 ) {
-    var selectedDay by remember { mutableStateOf(29) }
-    var expandedSlot by remember { mutableStateOf<String?>(null) }
-    val slots = slotsForDay(selectedDay)
-    val selectedDate = LocalDate.of(2026, 1, selectedDay)
+    val today = remember { LocalDate.now() }
+    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+    var selectedDate by remember { mutableStateOf(today) }
+    var expandedSessionId by remember { mutableStateOf<Long?>(null) }
+    val monthLabel = remember(currentMonth) {
+        DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN).format(currentMonth.atDay(1))
+    }
+    val weeks = remember(currentMonth) { buildCalendar(currentMonth) }
     val dayOfWeekKorean = selectedDate.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)
+
+    LaunchedEffect(currentMonth) {
+        if (selectedDate.month != currentMonth.month || selectedDate.year != currentMonth.year) {
+            selectedDate = currentMonth.atDay(1)
+        }
+    }
+    LaunchedEffect(selectedDate) {
+        reserveViewModel.clearMessages()
+        reserveViewModel.load(selectedDate)
+    }
 
     Column(
         modifier = Modifier
@@ -79,15 +102,16 @@ fun ReserveScreen(
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface
             )
-            CalendarHeader(monthLabel = "2026년 1월")
+            CalendarHeader(
+                monthLabel = monthLabel,
+                onPrev = { currentMonth = currentMonth.minusMonths(1) },
+                onNext = { currentMonth = currentMonth.plusMonths(1) }
+            )
             WeekdayRow()
             CalendarGrid(
-                weeks = sampleCalendarWeeks(),
-                selectedDay = selectedDay,
-                onDaySelected = { day ->
-                    selectedDay = day
-                    expandedSlot = null
-                }
+                weeks = weeks,
+                selectedDay = selectedDate.dayOfMonth,
+                onDaySelected = { day -> selectedDate = currentMonth.atDay(day) }
             )
         }
 
@@ -98,22 +122,108 @@ fun ReserveScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "2026년 1월 ${selectedDay}일 $dayOfWeekKorean",
+                text = "${selectedDate.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일", Locale.KOREAN))} $dayOfWeekKorean",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            slots.forEach { slot ->
-                val expanded = expandedSlot == slot.time
-                ClassSlotRow(
-                    slot = slot,
-                    isStaff = isStaff,
-                    expanded = expanded,
-                    onToggle = {
-                        expandedSlot = if (expanded) null else slot.time
-                    }
+
+            reserveViewModel.errorMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
                 )
-                if (isStaff && expanded) {
-                    ReservationList(names = slot.reservedBy)
+            }
+            reserveViewModel.actionMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            when {
+                reserveViewModel.isLoading -> {
+                    Text(
+                        text = "세션을 불러오는 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                reserveViewModel.sessions.isEmpty() -> {
+                    Text(
+                        text = "해당 날짜에 세션이 없습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> {
+                    reserveViewModel.sessions.forEach { session ->
+                        if (isStaff) {
+                            StaffSessionRow(
+                                session = session,
+                                expanded = expandedSessionId == session.id,
+                                onToggle = {
+                                    expandedSessionId = if (expandedSessionId == session.id) null else session.id
+                                    if (expandedSessionId == session.id &&
+                                        !reserveViewModel.rosters.containsKey(session.id)
+                                    ) {
+                                        reserveViewModel.loadRoster(session.id)
+                                    }
+                                }
+                            )
+                            if (expandedSessionId == session.id) {
+                                val roster = reserveViewModel.rosters[session.id].orEmpty()
+                                RosterList(
+                                    roster = roster,
+                                    isLoading = reserveViewModel.rosterLoadingSessionId == session.id,
+                                    errorMessage = reserveViewModel.rosterErrorMessage
+                                )
+                            }
+                        } else {
+                            SessionRow(
+                                session = session,
+                                isStaff = false,
+                                isActionLoading = reserveViewModel.isActionLoading &&
+                                    reserveViewModel.actionSessionId == session.id,
+                                onReserve = {
+                                    reserveViewModel.reserve(selectedDate, session.timeSlot, session.id)
+                                },
+                                onCancel = {
+                                    reserveViewModel.cancel(selectedDate, session.timeSlot, session.id)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!isStaff) {
+            OutlinedCard {
+                Text(
+                    text = "내 예약",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (reserveViewModel.myReservationsLoading) {
+                    Text(
+                        text = "내 예약을 불러오는 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else if (reserveViewModel.myReservations.isEmpty()) {
+                    Text(
+                        text = "예약 내역이 없습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    reserveViewModel.myReservations
+                        .sortedBy { it.date + it.timeSlot }
+                        .forEach { item ->
+                            MyReservationRow(item)
+                        }
                 }
             }
         }
@@ -121,7 +231,11 @@ fun ReserveScreen(
 }
 
 @Composable
-private fun CalendarHeader(monthLabel: String) {
+private fun CalendarHeader(
+    monthLabel: String,
+    onPrev: () -> Unit,
+    onNext: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -132,28 +246,25 @@ private fun CalendarHeader(monthLabel: String) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.weight(1f))
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Box(
-                modifier = Modifier.size(26.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "<", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        CalendarNavButton("<", onPrev)
         Spacer(modifier = Modifier.width(8.dp))
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant
+        CalendarNavButton(">", onNext)
+    }
+}
+
+@Composable
+private fun CalendarNavButton(label: String, onClick: () -> Unit) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.size(26.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = ">", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(text = label, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -222,56 +333,88 @@ private fun CalendarGrid(
 }
 
 @Composable
-private fun ClassSlotRow(
-    slot: ReservationSlot,
+private fun SessionRow(
+    session: SessionResponse,
     isStaff: Boolean,
-    expanded: Boolean,
-    onToggle: () -> Unit
+    isActionLoading: Boolean,
+    onReserve: () -> Unit,
+    onCancel: () -> Unit
 ) {
+    val myStatus = session.myStatus
+    val isReserved = myStatus == "RESERVED"
+    val isWaitlist = myStatus == "WAITLIST"
+    val capacityText = session.capacity?.let { "정원 ${it}명" } ?: "정원 무제한"
+    val countText = buildString {
+        append("예약 ${session.bookedCount}명")
+        if (session.waitlistCount > 0) {
+            append(" / 대기 ${session.waitlistCount}명")
+        }
+    }
+
     Surface(
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = isStaff, onClick = onToggle)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = slot.time,
+                    text = session.timeSlot,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = if (isStaff) "예약 ${slot.reservedBy.size}명" else "예약 가능",
+                    text = capacityText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (isStaff) {
                 Text(
-                    text = if (expanded) "접기" else "보기",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    text = countText,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                Button(
-                    onClick = {},
-                    colors = ButtonDefaults.buttonColors(
+    if (!isStaff && (isReserved || isWaitlist)) {
+        val statusText = if (isReserved) {
+            "예약됨"
+        } else {
+                        val pos = session.myWaitlistPosition?.let { " ${it}번" } ?: ""
+                        "대기$pos"
+                    }
+                    Tag(
+                        text = statusText,
+                        background = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            if (!isStaff) {
+                val label = when {
+                    isReserved -> "예약 취소"
+                    isWaitlist -> "대기 취소"
+                    else -> "예약"
+                }
+                val colors = if (isReserved || isWaitlist) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                } else {
+                    ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp,
-                        vertical = 6.dp
                     )
+                }
+                Button(
+                    onClick = if (isReserved || isWaitlist) onCancel else onReserve,
+                    colors = colors,
+                    enabled = !isActionLoading
                 ) {
-                    Text(text = "예약")
+                    Text(text = if (isActionLoading) "처리 중..." else label)
                 }
             }
         }
@@ -279,8 +422,82 @@ private fun ClassSlotRow(
 }
 
 @Composable
-private fun ReservationList(names: List<String>) {
-    if (names.isEmpty()) {
+private fun StaffSessionRow(
+    session: SessionResponse,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val capacityText = session.capacity?.let { "정원 ${it}명" } ?: "정원 무제한"
+    val countText = buildString {
+        append("예약 ${session.bookedCount}명")
+        if (session.waitlistCount > 0) {
+            append(" / 대기 ${session.waitlistCount}명")
+        }
+    }
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = session.timeSlot,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = capacityText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = countText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = if (expanded) "접기" else "보기",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun RosterList(
+    roster: List<SessionReservationResponse>,
+    isLoading: Boolean,
+    errorMessage: String?
+) {
+    if (isLoading) {
+        Text(
+            text = "예약자 명단을 불러오는 중...",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
+        )
+        return
+    }
+    if (!errorMessage.isNullOrBlank()) {
+        Text(
+            text = errorMessage,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
+        )
+        return
+    }
+    if (roster.isEmpty()) {
         Text(
             text = "예약자가 없습니다",
             style = MaterialTheme.typography.labelSmall,
@@ -295,9 +512,14 @@ private fun ReservationList(names: List<String>) {
             .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        names.forEach { name ->
+        roster.forEach { item ->
+            val statusLabel = when (item.status) {
+                "RESERVED" -> "예약"
+                "WAITLIST" -> "대기"
+                else -> item.status
+            }
             Text(
-                text = "- $name",
+                text = "- ${item.displayName} ($statusLabel)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -305,80 +527,46 @@ private fun ReservationList(names: List<String>) {
     }
 }
 
-private data class ReservationSlot(
-    val time: String,
-    val reservedBy: List<String>
-)
-
-private fun slotsForDay(day: Int): List<ReservationSlot> {
-    val baseTimes = listOf("09:00", "10:30", "17:30", "19:00", "20:30")
-    val sample = mapOf(
-        29 to listOf(
-            ReservationSlot("09:00", listOf("김민지", "박도현", "이서준")),
-            ReservationSlot("10:30", listOf("최하린")),
-            ReservationSlot("17:30", listOf("윤지후", "한지수")),
-            ReservationSlot("19:00", listOf("오서진")),
-            ReservationSlot("20:30", emptyList())
-        ),
-        30 to listOf(
-            ReservationSlot("09:00", listOf("정우성")),
-            ReservationSlot("10:30", emptyList()),
-            ReservationSlot("17:30", listOf("조하윤", "유민서")),
-            ReservationSlot("19:00", emptyList()),
-            ReservationSlot("20:30", listOf("김도윤"))
+@Composable
+private fun MyReservationRow(item: com.crossfit.app.data.model.MyReservationResponse) {
+    val statusLabel = when (item.status) {
+        "RESERVED" -> "예약"
+        "WAITLIST" -> "대기"
+        "CANCELED" -> "취소"
+        else -> item.status
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "${item.date} ${item.timeSlot}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    )
-    val slots = sample[day]
-    if (slots != null) return slots
-    return baseTimes.map { time -> ReservationSlot(time, emptyList()) }
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = statusLabel,
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
 }
 
-private fun sampleCalendarWeeks(): List<List<CalendarDayCell>> {
-    return listOf(
-        listOf(
-            CalendarDayCell(28, false),
-            CalendarDayCell(29, false),
-            CalendarDayCell(30, false),
-            CalendarDayCell(31, false),
-            CalendarDayCell(1, true),
-            CalendarDayCell(2, true),
-            CalendarDayCell(3, true)
-        ),
-        listOf(
-            CalendarDayCell(4, true),
-            CalendarDayCell(5, true),
-            CalendarDayCell(6, true),
-            CalendarDayCell(7, true),
-            CalendarDayCell(8, true),
-            CalendarDayCell(9, true),
-            CalendarDayCell(10, true)
-        ),
-        listOf(
-            CalendarDayCell(11, true),
-            CalendarDayCell(12, true),
-            CalendarDayCell(13, true),
-            CalendarDayCell(14, true),
-            CalendarDayCell(15, true),
-            CalendarDayCell(16, true),
-            CalendarDayCell(17, true)
-        ),
-        listOf(
-            CalendarDayCell(18, true),
-            CalendarDayCell(19, true),
-            CalendarDayCell(20, true),
-            CalendarDayCell(21, true),
-            CalendarDayCell(22, true),
-            CalendarDayCell(23, true),
-            CalendarDayCell(24, true)
-        ),
-        listOf(
-            CalendarDayCell(25, true),
-            CalendarDayCell(26, true),
-            CalendarDayCell(27, true),
-            CalendarDayCell(28, true),
-            CalendarDayCell(29, true),
-            CalendarDayCell(30, true),
-            CalendarDayCell(31, true)
-        )
-    )
+private fun buildCalendar(month: YearMonth): List<List<CalendarDayCell>> {
+    val first = month.atDay(1)
+    val offset = first.dayOfWeek.value % 7
+    val daysInMonth = month.lengthOfMonth()
+    val totalCells = ((offset + daysInMonth + 6) / 7) * 7
+    val prevMonth = month.minusMonths(1)
+    val prevMonthDays = prevMonth.lengthOfMonth()
+    val cells = (0 until totalCells).map { index ->
+        val dayNumber = index - offset + 1
+        when {
+            dayNumber < 1 -> CalendarDayCell(prevMonthDays + dayNumber, false)
+            dayNumber > daysInMonth -> CalendarDayCell(dayNumber - daysInMonth, false)
+            else -> CalendarDayCell(dayNumber, true)
+        }
+    }
+    return cells.chunked(7)
 }

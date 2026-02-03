@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/sessions")
+@RequestMapping({"/api/sessions", "/sessions"})
 public class BookingController {
     private final BookingService bookingService;
     private final ReservationRepository reservationRepository;
@@ -21,19 +21,25 @@ public class BookingController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SessionSummary>> getSessions(
+    public ResponseEntity<List<SessionResponse>> getSessions(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             Authentication authentication) {
         Long userId = Long.valueOf(authentication.getName());
         List<Session> sessions = bookingService.getOrCreateSessions(date);
-        List<SessionSummary> summaries = sessions.stream().map(session -> {
+        List<SessionResponse> summaries = sessions.stream().map(session -> {
             long reservedCount = reservationRepository.countReserved(session.getId());
-            ReservationStatus status = reservationRepository
+            long waitlistCount = reservationRepository.countWaitlist(session.getId());
+            Reservation reservation = reservationRepository
                     .findBySessionIdAndUserId(session.getId(), userId)
-                    .map(Reservation::getStatus)
+                    .filter(found -> found.getStatus() != ReservationStatus.CANCELED)
                     .orElse(null);
-            return new SessionSummary(session.getId(), session.getSessionDate(), session.getTimeSlot(), session.getCapacity(),
-                    reservedCount, status);
+            ReservationStatus status = reservation == null ? null : reservation.getStatus();
+            Integer waitlistPosition = null;
+            if (reservation != null && reservation.getStatus() == ReservationStatus.WAITLIST) {
+                long ahead = reservationRepository.countWaitlistBefore(session.getId(), reservation.getCreatedAt());
+                waitlistPosition = Math.toIntExact(ahead + 1);
+            }
+            return SessionResponse.from(session, reservedCount, waitlistCount, status, waitlistPosition);
         }).toList();
         return ResponseEntity.ok(summaries);
     }
@@ -64,14 +70,24 @@ public class BookingController {
         return ResponseEntity.ok(reservations);
     }
 
+    @GetMapping("/{id}/reservations")
+    @PreAuthorize("hasAnyRole('ADMIN','COACH')")
+    public ResponseEntity<List<SessionReservationResponse>> reservations(@PathVariable("id") Long sessionId) {
+        List<SessionReservationResponse> responses = bookingService.getActiveReservations(sessionId)
+                .stream()
+                .map(SessionReservationResponse::from)
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
     @PatchMapping("/{id}/capacity")
     @PreAuthorize("hasAnyRole('ADMIN','COACH')")
-    public ResponseEntity<SessionSummary> updateCapacity(@PathVariable("id") Long sessionId,
-                                                         @RequestBody CapacityRequest request) {
+    public ResponseEntity<SessionResponse> updateCapacity(@PathVariable("id") Long sessionId,
+                                                          @RequestBody CapacityRequest request) {
         Session session = bookingService.updateCapacity(sessionId, request.capacity());
         long reservedCount = reservationRepository.countReserved(session.getId());
-        return ResponseEntity.ok(new SessionSummary(session.getId(), session.getSessionDate(), session.getTimeSlot(),
-                session.getCapacity(), reservedCount, null));
+        long waitlistCount = reservationRepository.countWaitlist(session.getId());
+        return ResponseEntity.ok(SessionResponse.from(session, reservedCount, waitlistCount, null, null));
     }
 
     public record CapacityRequest(@NotNull Integer capacity) {

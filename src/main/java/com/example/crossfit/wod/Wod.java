@@ -17,6 +17,9 @@ public class Wod {
     @Column(nullable = false)
     private String title;
 
+    @Column
+    private String type;
+
     @Lob
     @Column(nullable = false)
     private String description;
@@ -27,9 +30,10 @@ public class Wod {
     protected Wod() {
     }
 
-    public Wod(LocalDate wodDate, String title, String description, User createdBy) {
+    public Wod(LocalDate wodDate, String title, String type, String description, User createdBy) {
         this.wodDate = wodDate;
         this.title = title;
+        this.type = type;
         this.description = description;
         this.createdBy = createdBy;
     }
@@ -46,11 +50,21 @@ public class Wod {
         return title;
     }
 
+    public String getType() {
+        return type;
+    }
+
     public String getDescription() {
         return description;
     }
 
     public User getCreatedBy() {
         return createdBy;
+    }
+
+    public void update(String title, String type, String description) {
+        this.title = title;
+        this.type = type;
+        this.description = description;
     }
 }

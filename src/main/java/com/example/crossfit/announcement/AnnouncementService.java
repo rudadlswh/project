@@ -18,7 +18,7 @@ public class AnnouncementService {
     }
 
     public List<Announcement> getAll() {
-        return repository.findAll();
+        return repository.findAllByOrderByCreatedAtDesc();
     }
 
     public Announcement getById(Long id) {
